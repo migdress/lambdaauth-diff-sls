@@ -1,0 +1,37 @@
+service: lambdaauthdiffsls-login
+
+frameworkVersion: '2'
+
+custom:
+  active: ${file(../../conf.${self:provider.stage}.yml):conf}
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: ${opt:stage,'dev'}
+  region: us-east-1
+  environment: 
+    DYNAMODB_USER: ${self:custom.active.dynamodb_user}
+    SECRET_KEY: ${self:custom.active.secret_key}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:Query
+      Resource:
+        - arn:aws:dynamodb:${self:provider.region}:${self:custom.active.account}:table/${self:custom.active.dynamodb_user}
+        - arn:aws:dynamodb:${self:provider.region}:${self:custom.active.account}:table/${self:custom.active.dynamodb_user}/index/*
+
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+functions:
+  v1:
+    handler: bin/v1
+    events:
+      - http:
+          path: v1
+          method: post

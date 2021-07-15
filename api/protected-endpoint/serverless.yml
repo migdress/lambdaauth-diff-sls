@@ -1,0 +1,48 @@
+service: lambdaauthdiffsls-protected-endpoint
+
+frameworkVersion: '2'
+
+custom:
+  active: ${file(../../conf.${self:provider.stage}.yml):conf}
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: ${opt:stage,'dev'}
+  region: us-east-1
+
+resources:
+  Resources:
+    GWLambdaPermissionApiGateway:
+        Type: "AWS::Lambda::Permission"
+        Properties:
+          Action: lambda:InvokeFunction
+          FunctionName: "arn:aws:lambda:${self:provider.region}:${self:custom.active.account}:function:lambdaauthdiffsls-authorizer-${self:provider.stage}-v1"
+          Principal: "apigateway.amazonaws.com"
+          SourceArn:
+            Fn::Join:
+              - ""
+              - - "arn:aws:execute-api:"
+                - "${self:provider.region}:"
+                - "${self:custom.active.account}:"
+                - Ref: "ApiGatewayRestApi"
+                - "/authorizers/"
+                - Ref: "V1ApiGatewayAuthorizer"
+
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+functions:
+  v1:
+    handler: bin/v1
+    events:
+      - http:
+          path: v1
+          method: get
+          authorizer: 
+            arn: "arn:aws:lambda:${self:provider.region}:${self:custom.active.account}:function:lambdaauthdiffsls-authorizer-${self:provider.stage}-v1"
+            managedExternally: false
